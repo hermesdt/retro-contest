@@ -3,6 +3,9 @@ import tensorflow as tf
 import numpy as np
 from collections import deque
 from src import reward_calculator
+from src import actions_builder
+from retro.scripts import playback_movie
+from baselines.common import atari_wrappers
 
 
 class DQN():
@@ -35,12 +38,8 @@ class DQN():
     def actions(self):
         if self.ACTIONS != []: return self.ACTIONS
 
-        for i in range(self.env.action_space.n):
-            action_array = np.zeros(self.env.action_space.n)
-            action_array[i] = 1
-            self.ACTIONS.append(action_array)
+        self.ACTIONS = actions_builder.build(self.env.action_space)
 
-        self.ACTIONS = np.asarray(self.ACTIONS)
         return self.ACTIONS
 
     def build_model(self, initializer=None):
@@ -50,6 +49,7 @@ class DQN():
             # tf.layers.Conv2D(4, (2,2), strides=2, kernel_initializer=initializer),
             tf.layers.Flatten(input_shape=self.observation_space().shape),
             #tf.layers.Dense(100, kernel_initializer=initializer, activation=tf.keras.activations.relu),
+            tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu),
             tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu),
             tf.layers.Dense(self.action_space().n, kernel_initializer=initializer)
         ])
@@ -79,23 +79,7 @@ class DQN():
 
     def step(self):
         action = self.select_action(self.state)
-        state, reward, done, info = self._take_step(action)
-        self.state = self._reshape_state(state)
-        reward = self.reward(reward, info, self.prev_info)
-
-        if done:
-            target = reward
-        else:
-            target = self.td_target(reward, self.state)
-
-        self.update(self.state, target)
-        self.prev_info = info
-
-        self.num_steps += 1
-        if self.num_steps >= self.steps_transfers_weights:
-            self.transfer_weights()
-
-        return done
+        return self._process_step(*self._take_step(action))
 
     def select_action(self, state):
         probs = self._select_action_probs(state)
@@ -113,6 +97,25 @@ class DQN():
     def _take_step(self, action):
         return self.env.step(action)
 
+    def _process_step(self, state, reward, done, info, target=None):
+        self.state = self._reshape_state(state)
+        reward = self.reward(reward, info, self.prev_info)
+
+        if done:
+            target = reward
+        else:
+            if target is None:
+                target = self.td_target(reward, self.state)
+
+        self.update(self.state, target)
+        self.prev_info = info
+
+        self.num_steps += 1
+        if self.num_steps % self.steps_transfers_weights == 0:
+            self.transfer_weights()
+
+        return done
+
     def reward(self, reward, info, prev_info):
         return reward_calculator.reward(reward, info, prev_info)
 
@@ -128,3 +131,31 @@ class DQN():
         qs[np.argmax(target)] = np.max(target)
         self.model.optimizer.lr = self.lr
         self.model.fit(state, qs.reshape(1, len(target)), verbose=0)
+
+    def train_from_movie(self, movie_file):
+        print("training on", movie_file)
+        emulator, movie, duration, = playback_movie.load_movie(movie_file)
+        env = atari_wrappers.WarpFrame(emulator)
+        env = atari_wrappers.ScaledFloatFrame(env)
+        emulator = atari_wrappers.FrameStack(env, 4)
+        emulator.reset()
+
+        while movie.step():
+            keys = []
+            for i in range(16):
+                keys.append(movie.get_key(i))
+
+            print(keys)
+            keys = list(map(float, keys))
+            display, reward, done, info = emulator.step(keys[:12])
+
+            if keys[:12] not in self.ACTIONS:
+                raise Exception("received combination of keys not in current sent of actions")
+
+            action_idx = np.argmax(self.ACTIONS == keys[:12])
+            target = np.zeros(self.ACTIONS.shape[0])
+            target[action_idx] = 1
+            self._process_step(display, reward, done, info, target)
+
+        emulator.close()
+        movie.close()

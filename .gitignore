@@ -12,3 +12,4 @@ venv
 .DS_Store
 .idea
 .ipynb_checkpoints/
+human_games

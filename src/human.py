@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from __future__ import print_function
-
-import sys, gym, time, retro
-from retro_contest.local import make
+import time
+import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), "..", "support"))
+from retro_contest import local
 import numpy as np
 
 #
@@ -11,7 +11,7 @@ import numpy as np
 # python keyboard_agent.py SpaceInvadersNoFrameskip-v4
 #
 
-env = make(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act2')
+env = local.make(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act1', bk2dir="human_games")
 
 if not hasattr(env.action_space, 'n'):
     raise Exception('Keyboard agent only supports discrete action spaces')
@@ -78,8 +78,8 @@ def rollout(env):
             break
         while human_sets_pause:
             env.render()
-            time.sleep(0.06)
-        time.sleep(0.06)
+            time.sleep(0.05)
+        time.sleep(0.05)
     print("timesteps %i reward %0.2f" % (total_timesteps, total_reward))
 
 print("ACTIONS={}".format(ACTIONS))

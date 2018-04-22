@@ -1,4 +1,5 @@
 import retro
+import sys, os; sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 import retro_contest
 import gym
 
