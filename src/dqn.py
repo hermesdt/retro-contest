@@ -6,12 +6,15 @@ from src import reward_calculator
 from src import actions_builder
 from retro.scripts import playback_movie
 from baselines.common import atari_wrappers
+import random
 
 
 class DQN():
-    def __init__(self, environment, reply_memory_size=1000, gamma=0.99, epsilon=0.1, lr=0.1, steps_transfer_weights=500):
+    def __init__(self, environment, reply_memory_size=10000, gamma=0.99, epsilon=0.1, lr=0.001,
+                 steps_transfer_weights=1000,
+                 steps_learn_from_memory=500,
+                 replay_actions=500):
         self.env = environment
-        self.state = self._reshape_state(self.env.reset())
         self.replay_memory = deque(maxlen=reply_memory_size)
         self.steps_transfers_weights = steps_transfer_weights
         self._lr = lr
@@ -21,9 +24,20 @@ class DQN():
         self.prev_info = None
         self.ACTIONS = []
         self._action_space = None
+        self.replay_actions = replay_actions
+        self.steps_learn_from_memory = steps_learn_from_memory
 
     def _reshape_state(self, state):
         return np.array(state).reshape((1, *self.observation_space().shape))
+
+    @property
+    def env(self):
+        return self._env
+
+    @env.setter
+    def env(self, env):
+        self._env = env
+        self.state = env.reset()
 
     @property
     def lr(self):
@@ -44,17 +58,17 @@ class DQN():
 
     def build_model(self, initializer=None):
         model = tf.keras.models.Sequential([
-            #tf.keras.layers.Lambda(lambda data: tf.image.rgb_to_grayscale(data),
-            #                       input_shape=self.observation_space().shape),
-            # tf.layers.Conv2D(4, (2,2), strides=2, kernel_initializer=initializer),
-            tf.layers.Flatten(input_shape=self.observation_space().shape),
-            #tf.layers.Dense(100, kernel_initializer=initializer, activation=tf.keras.activations.relu),
-            tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu),
-            tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu),
+            tf.layers.Conv2D(10, (3, 3), input_shape=self.observation_space().shape),
+            tf.layers.Conv2D(10, (3, 3)),
+            tf.layers.AveragePooling2D((4, 4), 2),
+            tf.layers.Flatten(),
+            # tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu),
+            # tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu),
             tf.layers.Dense(self.action_space().n, kernel_initializer=initializer)
         ])
+        model.summary()
 
-        model.compile(tf.keras.optimizers.RMSprop(lr=self.lr), tf.keras.losses.mean_squared_error)
+        model.compile(tf.keras.optimizers.Adam(lr=self.lr), tf.keras.losses.mean_squared_error)
         return model
 
     def build_target_model(self):
@@ -77,16 +91,34 @@ class DQN():
         self._action_space = gym.spaces.Discrete(len(self.actions()))
         return self._action_space
 
-    def step(self):
-        action = self.select_action(self.state)
-        return self._process_step(*self._take_step(action))
+    def step(self, action=None):
+        if action is None:
+            action = self.select_action(self.state)
+        state, reward, done, info = self.env.step(action)
+        self.remember(self.state, action, state, reward, done, info, self.prev_info)
+
+        self.state = state
+        self.prev_info = info
+
+        self.num_steps += 1
+
+        if self.num_steps % self.steps_learn_from_memory == 0:
+            self.learn_from_memory()
+
+        if self.num_steps % self.steps_transfers_weights == 0:
+            self.transfer_weights()
+
+        return done
+
+    def remember(self, old_state, action, state, reward, done, info, prev_info):
+        self.replay_memory.append((old_state, action, state, reward, done, info, prev_info))
 
     def select_action(self, state):
         probs = self._select_action_probs(state)
         return self.actions()[np.random.choice(range(len(probs)), p=probs)]
 
     def _select_action_probs(self, state):
-        predicted = self.model.predict(state)[0]
+        predicted = self.model.predict(self._reshape_state(state))[0]
 
         num_actions = self.action_space().n
         probs = np.full(num_actions, self.epsilon/num_actions)
@@ -94,68 +126,61 @@ class DQN():
         probs[action] = 1 - self.epsilon + self.epsilon / num_actions
         return probs
 
-    def _take_step(self, action):
-        return self.env.step(action)
+    def learn_from_memory(self):
+        mems = random.sample(self.replay_memory, min(len(self.replay_memory), self.replay_actions))
 
-    def _process_step(self, state, reward, done, info, target=None):
-        self.state = self._reshape_state(state)
-        reward = self.reward(reward, info, self.prev_info)
+        old_states, actions, states, rewards, dones = [], [], [], [], []
+        for old_state, action, state, reward, done, info, prev_info in mems:
+            old_states.append(old_state)
+            actions.append(action)
+            states.append(state)
+            rewards.append(self.reward(reward, done, info, prev_info))
+            dones.append(done)
 
-        if done:
-            target = reward
-        else:
-            if target is None:
-                target = self.td_target(reward, self.state)
+        old_states = np.array(old_states)
+        actions = np.array(actions)
+        states = np.array(states)
+        rewards = np.array(rewards)
+        dones = np.array(dones)
 
-        self.update(self.state, target)
-        self.prev_info = info
+        target_prediction = self.target_model.predict(states)
+        td_targets = np.zeros(target_prediction.shape)
+        td_targets[
+            np.arange(len(target_prediction)), np.argmax(target_prediction, axis=1)] +=\
+            np.array(rewards) + self.gamma
 
-        self.num_steps += 1
-        if self.num_steps % self.steps_transfers_weights == 0:
-            self.transfer_weights()
+        if np.sum(dones) > 0:
+            td_targets[dones, np.argmax(target_prediction, axis=1)] = rewards[dones]
 
-        return done
+        predictions = self.model.predict(old_states)
+        predictions[np.arange(len(predictions)), np.argmax(td_targets, axis=1)] = np.max(td_targets, axis=1)
 
-    def reward(self, reward, info, prev_info):
-        return reward_calculator.reward(reward, info, prev_info)
+        self.model.fit(old_states, predictions, batch_size=32, shuffle=True, verbose=1)
 
-    def td_target(self, reward, state):
-        target_qs = reward + self.gamma * self.target_model.predict(state)[0]
-        target = np.zeros(len(target_qs))
-        action_idx = np.argmax(target_qs)
-        target[action_idx] = target_qs[action_idx]
-        return target
-
-    def update(self, state, target):
-        qs = self.model.predict(state)[0]
-        qs[np.argmax(target)] = np.max(target)
-        self.model.optimizer.lr = self.lr
-        self.model.fit(state, qs.reshape(1, len(target)), verbose=0)
+    def reward(self, reward, done, info, prev_info):
+        return reward_calculator.reward(reward, done, info, prev_info)
 
     def train_from_movie(self, movie_file):
         print("training on", movie_file)
-        emulator, movie, duration, = playback_movie.load_movie(movie_file)
-        env = atari_wrappers.WarpFrame(emulator)
+        env, movie, duration, = playback_movie.load_movie(movie_file)
+        env = atari_wrappers.WarpFrame(env)
         env = atari_wrappers.ScaledFloatFrame(env)
-        emulator = atari_wrappers.FrameStack(env, 4)
-        emulator.reset()
+        self.env = atari_wrappers.FrameStack(env, 4)
+        self.prev_info = None
 
         while movie.step():
             keys = []
             for i in range(16):
                 keys.append(movie.get_key(i))
 
-            print(keys)
-            keys = list(map(float, keys))
-            display, reward, done, info = emulator.step(keys[:12])
+            keys = list(map(float, keys))[:12]
+            actions = np.where((self.actions() == np.array(keys)).all(axis=1))
+            if len(actions) != 1:
+                raise ValueError("keys array not present in actions", keys)
+            else:
+                action = actions[0]
 
-            if keys[:12] not in self.ACTIONS:
-                raise Exception("received combination of keys not in current sent of actions")
+            self.step(action)
 
-            action_idx = np.argmax(self.ACTIONS == keys[:12])
-            target = np.zeros(self.ACTIONS.shape[0])
-            target[action_idx] = 1
-            self._process_step(display, reward, done, info, target)
-
-        emulator.close()
+        env.close()
         movie.close()
