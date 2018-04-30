@@ -19,7 +19,9 @@ def create_environment():
 
 
 env = create_environment()
-dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500, replay_actions=1000).setup_models()
+dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500, replay_actions=2000, epsilon=0.5).setup_models()
+#dqn.model.load_weights("weights/alvaro_dqn_model.h5")
+#dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
 env.close()
 
 human_games = glob("human_games/*")
@@ -41,10 +43,12 @@ def train_on_game(dqn, render=False):
 
 
 if __name__ == "__main__":
-    for i in range(5):
-        train_on_random_movie(dqn)
-        train_on_game(dqn, render=True)
+    for i in range(500):
+        #train_on_random_movie(dqn)
+        train_on_game(dqn, render=False)
+        dqn.epsilon *= 0.9855
+        print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.last_x, dqn._epsilon), flush=True)
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
         dqn.target_model.save_weights("weights/alvaro_dqn_target_model.h5")
 
-    train_on_game(dqn, render=True)
+    # train_on_game(dqn, render=True)

@@ -1,11 +1,15 @@
 def reward(reward, done, info, prev_info):
-    if done:
-        reward
+    # if done:
+    #     reward
+#
+    # if reward:
+    #     return reward
+#
+    if prev_info:
+        if info["lives"] < prev_info["lives"]:
+            return -0.1
 
-    if reward:
-        return reward
+        if info["x"] > prev_info["x"] + 1:
+            return 0.01
 
-    if prev_info and info["x"] > prev_info["x"]:
-        return 0.001
-
-    return -0.01
+    return -0.001#
