@@ -1,36 +1,24 @@
-from support.retro_contest import local
-from baselines.common import atari_wrappers
 from src import dqn
 from glob import glob
 import random
-
-def create_environment():
-    env = local.make(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act1')
-
-    # see https://github.com/openai/baselines/blob/master/baselines/common/atari_wrappers.py#L223
-    # can't us it because if specific for atari env, should we create or own?
-    # env = atari_wrappers.EpisodicLifeEnv(env)
-    env = atari_wrappers.WarpFrame(env)
-    env = atari_wrappers.ScaledFloatFrame(env)
-    # env = atari_wrappers.ClipRewardEnv(env)
-    env = atari_wrappers.FrameStack(env, 4)
-
-    return env
+from src.env_creator import create_environment
 
 
-env = create_environment()
-dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500, replay_actions=2000, epsilon=0.5).setup_models()
-#dqn.model.load_weights("weights/alvaro_dqn_model.h5")
-#dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
+env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
+dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.15).setup_models()
+dqn.model.load_weights("weights/alvaro_dqn_model.h5")
+dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
 env.close()
+dqn._env = None
 
 human_games = glob("human_games/*")
 def train_on_random_movie(dqn):
     movie = random.sample(human_games, 1)[0]
     dqn.train_from_movie(movie)
 
-def train_on_game(dqn, render=False):
-    env = create_environment()
+def train_on_game(dqn, render=False, env=None):
+    if env is None:
+        env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act1')
     dqn.env = env
     done = False
 
@@ -39,16 +27,17 @@ def train_on_game(dqn, render=False):
         if render:
             env.render()
 
-    env.close()
+    #env.close()
 
 
 if __name__ == "__main__":
-    for i in range(500):
+    for i in range(10):
         #train_on_random_movie(dqn)
-        train_on_game(dqn, render=False)
-        dqn.epsilon *= 0.9855
-        print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.last_x, dqn._epsilon), flush=True)
-        dqn.model.save_weights("weights/alvaro_dqn_model.h5")
-        dqn.target_model.save_weights("weights/alvaro_dqn_target_model.h5")
+        train_on_game(dqn, render=True, env=dqn.env)
+        dqn.learn_from_memory()
+        print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
+        #dqn.model.save_weights("weights/alvaro_dqn_model.h5")
+        #dqn.target_model.save_weights("weights/alvaro_dqn_target_model.h5")
 
     # train_on_game(dqn, render=True)
+    dqn.env.close()
