@@ -102,7 +102,7 @@ class DQN():
         self.target_model.set_weights(self.model.get_weights())
 
     def setup_models(self):
-        self.model = self.build_model()
+        self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
         self.target_model = self.build_target_model()
         return self
 
@@ -116,7 +116,7 @@ class DQN():
         return self._action_space
 
     def step(self, human_action=None):
-        if human_action:
+        if human_action is not None:
             self.action = human_action
 
         new_state, reward, done, info = self.env.step(self.action)
@@ -209,7 +209,7 @@ class DQN():
             if len(actions) != 1:
                 raise ValueError("keys array not present in actions", keys)
             else:
-                action = actions[0]
+                action = self.ACTIONS[actions[0]][0]
 
             self.step(action)
 

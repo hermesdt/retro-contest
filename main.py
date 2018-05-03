@@ -27,12 +27,13 @@ def train_on_game(dqn, render=False, env=None):
         if render:
             env.render()
 
-    #env.close()
+    # env.close()
 
 
 if __name__ == "__main__":
-    for i in range(10):
-        #train_on_random_movie(dqn)
+    for i in range(100):
+        # train_on_random_movie(dqn)
+        # dqn.learn_from_memory()
         train_on_game(dqn, render=True, env=dqn.env)
         dqn.learn_from_memory()
         print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
