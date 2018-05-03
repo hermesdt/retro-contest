@@ -14,6 +14,7 @@ class DQN():
                  steps_transfer_weights=1000,
                  steps_learn_from_memory=500,
                  replay_actions=500):
+        self.ACTIONS = []
         self.env = environment
         self.replay_memory = deque(maxlen=reply_memory_size)
         self.episode_memory = []
@@ -24,7 +25,6 @@ class DQN():
         self.num_steps = 0
         self.prev_info = None
         self.episode_steps = 0
-        self.ACTIONS = []
         self._action_space = None
         self.replay_actions = replay_actions
         self.steps_learn_from_memory = steps_learn_from_memory
@@ -47,6 +47,7 @@ class DQN():
         self.episode_memory = []
         self.max_x = 0
         self.state = env.reset()
+        self.action = random.choice(self.actions())
 
     @property
     def lr(self):
@@ -115,16 +116,12 @@ class DQN():
         return self._action_space
 
     def step(self, human_action=None):
-        if human_action is None:
-            action = self.select_action(self.state)
-        else:
-            action = human_action
+        if human_action:
+            self.action = human_action
 
-        new_state, reward, done, info = self.env.step(action)
-
-        if self.prev_info and info["lives"] < self.prev_info["lives"]:
-            done = True
-            reward = -100
+        new_state, reward, done, info = self.env.step(self.action)
+        old_state, self.state = self.state, new_state
+        old_action, self.action = self.action, self.select_action(new_state)
 
         self.max_x = max(info["x"], self.max_x)
 
@@ -137,28 +134,19 @@ class DQN():
             if self.first_x and self.last_x and abs(self.first_x - self.last_x) < 20:
                 self.first_x = self.last_x = None
                 done = True
-                reward = reward_calculator.END_OF_GAME
             else:
                 self.first_x = self.last_x
 
-        self.remember(self.state, action, new_state, reward, done, info, self.prev_info)
+        self.remember(old_state, old_action, new_state, reward, done, info, self.prev_info, self.actions())
 
-        self.state = new_state
         self.prev_info = info
-
         self.num_steps += 1
         self.episode_steps += 1
 
-        # if self.num_steps % self.steps_learn_from_memory == 0:
-        #     self.learn_from_memory()
-#
-        # if self.num_steps % self.steps_transfers_weights == 0:
-        #     self.transfer_weights()
-
         return done
 
-    def remember(self, state, action, new_state, reward, done, info, prev_info):
-        self.episode_memory.append((state, action, new_state, reward, done, info, prev_info))
+    def remember(self, state, action, new_state, reward, done, info, prev_info, new_action):
+        self.episode_memory.append((state, action, new_state, reward, done, info, prev_info, new_action))
 
     def select_action(self, state):
         probs = self._select_action_probs(state)
@@ -174,32 +162,32 @@ class DQN():
         return probs
 
     def learn_from_memory(self):
-        # mems = random.sample(self.replay_memory, min(len(self.replay_memory), self.replay_actions))
-
-        states, actions, new_states, rewards, dones = [], [], [], [], []
+        states, actions, new_states, rewards, dones, new_actions = [], [], [], [], [], []
         ret = 0
-        for state, action, new_state, reward, done, info, prev_info in self.episode_memory[::-1]:
+        for state, action, new_state, reward, done, info, prev_info, new_action in self.episode_memory[::-1]:
             ret = reward = reward + ret*self.gamma
             states.append(state)
-            actions.append(action)
+            actions.append(np.where((self.actions() == np.array(action)).all(axis=1))[0][0])
             new_states.append(new_state)
             rewards.append(self.reward(reward, done, info, prev_info))
             dones.append(done)
+            new_actions.append(np.where((self.actions() == np.array(new_action)).all(axis=1))[0][0])
 
         states = np.array(states)
         actions = np.array(actions)
         new_states = np.array(new_states)
         rewards = np.array(rewards)
         dones = np.array(dones)
+        new_actions = np.array(new_actions, dtype=np.int)
 
         target_prediction = self.model.predict(new_states)
-        td_targets = np.zeros(target_prediction.shape)
-        td_targets[
-            np.arange(len(target_prediction)), np.argmax(target_prediction, axis=1)] +=\
+        target_prediction[
+            np.arange(len(target_prediction)), new_actions] +=\
             np.array(rewards)
 
         predictions = self.model.predict(states)
-        predictions[np.arange(len(predictions)), np.argmax(td_targets, axis=1)] = np.max(td_targets, axis=1)
+        predictions[
+            np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
 
         self.model.fit(states, predictions, batch_size=32, shuffle=True, verbose=1)
 

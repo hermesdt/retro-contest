@@ -6,8 +6,8 @@ from src.env_creator import create_environment
 
 env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
 dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.15).setup_models()
-dqn.model.load_weights("weights/alvaro_dqn_model.h5")
-dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
+#dqn.model.load_weights("weights/alvaro_dqn_model.h5")
+#dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
 env.close()
 dqn._env = None
 
