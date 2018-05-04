@@ -10,7 +10,7 @@ from src.env_creator import wrap_environment
 
 
 class DQN():
-    def __init__(self, environment, reply_memory_size=10000, gamma=0.95, epsilon=0.2, lr=0.0001,
+    def __init__(self, environment, reply_memory_size=10000, gamma=0.95, epsilon=0.2, lr=0.00001,
                  steps_transfer_weights=1000,
                  steps_learn_from_memory=500,
                  replay_actions=500):
@@ -61,7 +61,7 @@ class DQN():
 
     @epsilon.setter
     def epsilon(self, value):
-        self._epsilon = max(0.01, value)
+        self._epsilon = max(0.1, value)
 
     def actions(self):
         if self.ACTIONS != []: return self.ACTIONS
@@ -72,21 +72,23 @@ class DQN():
 
     def build_model(self, initializer=None):
         model = tf.keras.models.Sequential([
-            #tf.layers.Conv2D(32, (5, 5), input_shape=self.observation_space().shape),
-            # tf.layers.Conv2D(32, (3, 3)),
-            #tf.layers.AveragePooling2D((3, 3), 3),
-            # tf.layers.Flatten(),
+            tf.layers.Conv2D(32, (5, 5), input_shape=self.observation_space().shape),
+            tf.layers.Conv2D(32, (3, 3)),
+            tf.layers.AveragePooling2D((3, 3), 3),
+            tf.layers.Flatten(),
             # tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu),
             # tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu),
             # tf.keras.layers.Lambda(lambda data: tf.image.rgb_to_grayscale(data), ),
-            tf.layers.Flatten(input_shape=self.observation_space().shape),
-            tf.layers.Dense(40, kernel_initializer=initializer),
+            #tf.layers.Flatten(input_shape=self.observation_space().shape),
+            tf.layers.Dense(60, kernel_initializer=initializer),
+            tf.keras.layers.LeakyReLU(),
+            tf.layers.Dense(60, kernel_initializer=initializer),
             tf.keras.layers.LeakyReLU(),
             tf.layers.Dense(30, kernel_initializer=initializer),
             tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(20, kernel_initializer=initializer),
+            tf.layers.Dense(30, kernel_initializer=initializer),
             tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(10, kernel_initializer=initializer),
+            tf.layers.Dense(30, kernel_initializer=initializer),
             tf.keras.layers.LeakyReLU(),
             tf.layers.Dense(self.action_space().n, kernel_initializer=initializer)
         ])
@@ -128,7 +130,7 @@ class DQN():
         if self.first_x is None:
             self.first_x = info["x"]
 
-        if human_action is None and self.episode_steps > 0 and self.episode_steps % 100 == 0:
+        if human_action is None and self.episode_steps > 0 and self.episode_steps % 200 == 0:
             self.last_x = info["x"]
 
             if self.first_x and self.last_x and abs(self.first_x - self.last_x) < 20:

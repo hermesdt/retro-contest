@@ -29,22 +29,23 @@ def train_on_game(dqn, render=False, env=None):
         if render:
             env.render()
 
-    env.close()
+    #env.close()
     print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
 
 if __name__ == "__main__":
     from retro import list_games
     print(list_games())
-    for i in range(5):
+    for i in range(10):
         train_on_random_movie(dqn)
         dqn.learn_from_memory()
-    dqn._env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
+    dqn.env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act2')
 
     for i in range(1000):
-        train_on_game(dqn, render=True)
+        train_on_game(dqn, render=False, env=dqn.env)
         dqn.learn_from_memory()
-        train_on_game(dqn, render=True)
+        train_on_game(dqn, render=False, env=dqn.env)
         dqn.learn_from_memory()
+        dqn._epsilon *= 0.98
 
         print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
