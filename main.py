@@ -40,24 +40,26 @@ if __name__ == "__main__":
     episodes = 0
 
     while True:
-        for i in range(0):
+        for i in range(1):
             train_on_random_movie(dqn)
             dqn.learn_from_memory()
 
         game, state = random_state()
 
-        env = create_environment(game="SonicTheHedgehog-Genesis", state="StarLightZone.Act1")
+        env = create_environment(game="SonicTheHedgehog-Genesis", state=state)
         dqn.env = env
         dqn._epsilon = 0.2
 
-        for i in range(100):
+        for i in range(50):
             dqn.env = env
-            train_on_game(dqn, render=True)
+            train_on_game(dqn, render=False)
             dqn.learn_from_memory()
             dqn._epsilon *= 0.98
 
             episodes += 1
             print("({}/{}) Episode {}, steps {}, last_x {}, epsilon {}".format(
                 game, state, episodes, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
+            dqn.model.save_weights("weights/alvaro_dqn_model.h5")
+            dqn.target_model.save_weights("weights/alvaro_dqn_target_model.h5")
 
         env.close()

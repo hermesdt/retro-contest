@@ -76,9 +76,9 @@ class DQN():
         frames_in = tf.keras.Input(shape=self.observation_space().shape, name="frames_in")
         extras_in = tf.keras.Input(shape=(1,), name="extras_in")
 
-        x = tf.layers.Conv2D(32, (5, 5), input_shape=self.observation_space().shape)(frames_in)
-        x = tf.layers.Conv2D(32, (3, 3))(x)
-        x = tf.layers.AveragePooling2D((3, 3), 3)(x)
+        x = tf.layers.Conv2D(32, (7, 7), input_shape=self.observation_space().shape)(frames_in)
+        x = tf.layers.Conv2D(32, (7, 7))(x)
+        x = tf.layers.AveragePooling2D((7, 7), 7)(x)
         x = tf.layers.Flatten()(x)
         x = tf.keras.layers.Concatenate()([x, extras_in])
         # x = tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
@@ -128,9 +128,8 @@ class DQN():
             self.action = human_action
 
         new_state, reward, done, info = self.env.step(self.action)
-        info['stuck_distance'] = self.stucks_store.smallest_distance(info["x"], info["y"])
+        info['stuck_distance'] = self.stucks_store.smallest_distance(info["x"], info["y"]) < 40
         old_state, self.state = self.state, new_state
-        print(info["stuck_distance"])
         old_action, self.action = self.action, self.select_action(new_state, [info["stuck_distance"]])
 
         self.max_x = max(info["x"], self.max_x)
