@@ -8,7 +8,7 @@ from retro import list_games, list_states
 
 env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
 dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.03,
-              gamma=0.5).setup_models()
+              gamma=0.995).setup_models()
 
 if os.path.exists("weights/alvaro_dqn_model.h5"):
     dqn.model.load_weights("weights/alvaro_dqn_model.h5")

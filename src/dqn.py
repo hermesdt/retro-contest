@@ -128,7 +128,7 @@ class DQN():
             self.action = human_action
 
         new_state, reward, done, info = self.env.step(self.action)
-        info['stuck_distance'] = self.stucks_store.smallest_distance(info["x"], info["y"]) < 40
+        info['stuck_distance'] = 1/(self.stucks_store.smallest_distance(info["x"], info["y"])+0.01)
         old_state, self.state = self.state, new_state
         old_action, self.action = self.action, self.select_action(new_state, [info["stuck_distance"]])
 
@@ -144,7 +144,7 @@ class DQN():
                 self.first_x = self.last_x = None
                 done = True
                 self.stucks_store.add(info["x"], info["y"])
-                if reward == 0: reward = -1
+                if reward == 0: reward = -100
             else:
                 self.first_x = self.last_x
 
