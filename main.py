@@ -2,13 +2,14 @@ from src import dqn
 from glob import glob
 import random
 from src.env_creator import create_environment
+from retro import list_games, list_states
 
 
 env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
 dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.2,
               gamma=0.5).setup_models()
-#dqn.model.load_weights("weights/alvaro_dqn_model.h5")
-#dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
+dqn.model.load_weights("weights/alvaro_dqn_model.h5")
+dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
 env.close()
 dqn._env = None
 
@@ -17,11 +18,13 @@ def train_on_random_movie(dqn):
     movie = random.sample(human_games, 1)[0]
     dqn.train_from_movie(movie)
 
-def train_on_game(dqn, render=False, env=None):
+def random_state():
+    # game = random.choice(list_games())
+    game = 'SonicTheHedgehog-Genesis'
+    state = random.choice(list_states(game))
+    return game, state
 
-    if env is None:
-        env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act1')
-    dqn.env = env
+def train_on_game(dqn, render=False):
     done = False
 
     while not done:
@@ -29,27 +32,29 @@ def train_on_game(dqn, render=False, env=None):
         if render:
             env.render()
 
-    #env.close()
-    print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
-
 if __name__ == "__main__":
-    from retro import list_games
-    print(list_games())
-    for i in range(10):
-        train_on_random_movie(dqn)
-        dqn.learn_from_memory()
-    dqn.env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act2')
 
-    for i in range(1000):
-        train_on_game(dqn, render=False, env=dqn.env)
-        dqn.learn_from_memory()
-        train_on_game(dqn, render=False, env=dqn.env)
-        dqn.learn_from_memory()
-        dqn._epsilon *= 0.98
+    episodes = 0
 
-        print("Episode {}, steps {}, last_x {}, epsilon {}".format(i, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
-        dqn.model.save_weights("weights/alvaro_dqn_model.h5")
-        dqn.target_model.save_weights("weights/alvaro_dqn_target_model.h5")
+    while True:
+        for i in range(5):
+            train_on_random_movie(dqn)
+            dqn.learn_from_memory()
 
-    # train_on_game(dqn, render=True)
-    dqn.env.close()
+        game, state = random_state()
+
+        env = create_environment(game=game, state=state)
+        dqn.env = env
+        dqn._epsilon = 0.2
+
+        for i in range(100):
+            train_on_game(dqn, render=True)
+            dqn.learn_from_memory()
+            dqn.env = env
+            dqn._epsilon *= 0.98
+
+            episodes += 1
+            print("({}/{}) Episode {}, steps {}, last_x {}, epsilon {}".format(
+                game, state, episodes, dqn.episode_steps, dqn.max_x, dqn._epsilon), flush=True)
+
+        env.close()
