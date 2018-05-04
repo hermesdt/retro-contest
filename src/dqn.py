@@ -134,6 +134,7 @@ class DQN():
             if self.first_x and self.last_x and abs(self.first_x - self.last_x) < 20:
                 self.first_x = self.last_x = None
                 done = True
+                if reward == 0: reward = -1
             else:
                 self.first_x = self.last_x
 
@@ -189,7 +190,7 @@ class DQN():
         predictions[
             np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
 
-        self.model.fit(states, predictions, batch_size=32, shuffle=True, verbose=1)
+        self.model.fit(states, predictions, batch_size=32, shuffle=True, verbose=1, epochs=2)
 
     def reward(self, reward, done, info, prev_info):
         return reward_calculator.reward(reward, done, info, prev_info)

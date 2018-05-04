@@ -14,7 +14,7 @@ def build_simplified(action_space):
     """
     Return all combinations of actions 0, 6, 7, 8 (no-np, left, right, jump)
     """
-    actions = [6, 7, 8]
+    actions = [4, 5, 6, 7, 8]
 
     multi_binary_actions = []
     for combination in itertools.chain.from_iterable(itertools.combinations(actions, i) for i in range(len(actions) + 1)):
