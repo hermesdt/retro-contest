@@ -7,6 +7,7 @@ from src import actions_builder
 from retro.scripts import playback_movie
 import random
 from src.env_creator import wrap_environment
+from src.coords_store import CoordsStore
 
 
 class DQN():
@@ -31,6 +32,7 @@ class DQN():
         self.first_x, self.last_x = None, None
         self.max_x = 0
         self.prev_action = None
+        self.stucks_store = CoordsStore()
 
     def _reshape_state(self, state):
         return np.array(state).reshape((1, *self.observation_space().shape))
@@ -71,27 +73,31 @@ class DQN():
         return self.ACTIONS
 
     def build_model(self, initializer=None):
-        model = tf.keras.models.Sequential([
-            tf.layers.Conv2D(32, (5, 5), input_shape=self.observation_space().shape),
-            tf.layers.Conv2D(32, (3, 3)),
-            tf.layers.AveragePooling2D((3, 3), 3),
-            tf.layers.Flatten(),
-            # tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu),
-            # tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu),
-            # tf.keras.layers.Lambda(lambda data: tf.image.rgb_to_grayscale(data), ),
-            #tf.layers.Flatten(input_shape=self.observation_space().shape),
-            tf.layers.Dense(60, kernel_initializer=initializer),
-            tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(60, kernel_initializer=initializer),
-            tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(30, kernel_initializer=initializer),
-            tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(30, kernel_initializer=initializer),
-            tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(30, kernel_initializer=initializer),
-            tf.keras.layers.LeakyReLU(),
-            tf.layers.Dense(self.action_space().n, kernel_initializer=initializer)
-        ])
+        frames_in = tf.keras.Input(shape=self.observation_space().shape, name="frames_in")
+        extras_in = tf.keras.Input(shape=(1,), name="extras_in")
+
+        x = tf.layers.Conv2D(32, (5, 5), input_shape=self.observation_space().shape)(frames_in)
+        x = tf.layers.Conv2D(32, (3, 3))(x)
+        x = tf.layers.AveragePooling2D((3, 3), 3)(x)
+        x = tf.layers.Flatten()(x)
+        x = tf.keras.layers.Concatenate()([x, extras_in])
+        # x = tf.layers.Dense(20, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        # x = tf.layers.Dense(10, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        # x = tf.keras.layers.Lambda(lambda data: tf.image.rgb_to_grayscale(data), )(x)
+        # x = tf.layers.Flatten(input_shape=self.observation_space().shape)(x)
+        x = tf.layers.Dense(60, kernel_initializer=initializer)(x)
+        x = tf.keras.layers.LeakyReLU()(x)
+        x = tf.layers.Dense(60, kernel_initializer=initializer)(x)
+        x = tf.keras.layers.LeakyReLU()(x)
+        x = tf.layers.Dense(30, kernel_initializer=initializer)(x)
+        x = tf.keras.layers.LeakyReLU()(x)
+        x = tf.layers.Dense(30, kernel_initializer=initializer)(x)
+        x = tf.keras.layers.LeakyReLU()(x)
+        x = tf.layers.Dense(30, kernel_initializer=initializer)(x)
+        x = tf.keras.layers.LeakyReLU()(x)
+        x = tf.layers.Dense(self.action_space().n, kernel_initializer=initializer)(x)
+
+        model = tf.keras.models.Model(inputs=[frames_in, extras_in], outputs=[x])
         model.summary()
 
         model.compile(tf.keras.optimizers.Adam(lr=self.lr), tf.keras.losses.mean_squared_error)
@@ -122,25 +128,28 @@ class DQN():
             self.action = human_action
 
         new_state, reward, done, info = self.env.step(self.action)
+        info['stuck_distance'] = self.stucks_store.smallest_distance(info["x"], info["y"])
         old_state, self.state = self.state, new_state
-        old_action, self.action = self.action, self.select_action(new_state)
+        print(info["stuck_distance"])
+        old_action, self.action = self.action, self.select_action(new_state, [info["stuck_distance"]])
 
         self.max_x = max(info["x"], self.max_x)
 
         if self.first_x is None:
             self.first_x = info["x"]
 
-        if human_action is None and self.episode_steps > 0 and self.episode_steps % 200 == 0:
+        if human_action is None and self.episode_steps > 0 and self.episode_steps % 100 == 0:
             self.last_x = info["x"]
 
             if self.first_x and self.last_x and abs(self.first_x - self.last_x) < 20:
                 self.first_x = self.last_x = None
                 done = True
+                self.stucks_store.add(info["x"], info["y"])
                 if reward == 0: reward = -1
             else:
                 self.first_x = self.last_x
 
-        self.remember(old_state, old_action, new_state, reward, done, info, self.prev_info, self.actions())
+        self.remember(old_state, old_action, new_state, reward, done, info, self.prev_info, self.action)
 
         self.prev_info = info
         self.num_steps += 1
@@ -151,12 +160,12 @@ class DQN():
     def remember(self, state, action, new_state, reward, done, info, prev_info, new_action):
         self.episode_memory.append((state, action, new_state, reward, done, info, prev_info, new_action))
 
-    def select_action(self, state):
-        probs = self._select_action_probs(state)
+    def select_action(self, state, extras):
+        probs = self._select_action_probs(state, extras)
         return self.actions()[np.random.choice(range(len(probs)), p=probs)]
 
-    def _select_action_probs(self, state):
-        predicted = self.model.predict(self._reshape_state(state))[0]
+    def _select_action_probs(self, state, extras):
+        predicted = self.model.predict([self._reshape_state(state), np.array(extras)])[0]
 
         num_actions = self.action_space().n
         probs = np.full(num_actions, self.epsilon/num_actions)
@@ -166,9 +175,11 @@ class DQN():
 
     def learn_from_memory(self):
         states, actions, new_states, rewards, dones, new_actions = [], [], [], [], [], []
+        stuck_distances = []
         ret = 0
         for state, action, new_state, reward, done, info, prev_info, new_action in self.episode_memory[::-1]:
             ret = reward = reward + ret*self.gamma
+            stuck_distances.append(info["stuck_distance"])
             states.append(state)
             actions.append(np.where((self.actions() == np.array(action)).all(axis=1))[0][0])
             new_states.append(new_state)
@@ -176,6 +187,7 @@ class DQN():
             dones.append(done)
             new_actions.append(np.where((self.actions() == np.array(new_action)).all(axis=1))[0][0])
 
+        stuck_distances = np.array(stuck_distances)
         states = np.array(states)
         actions = np.array(actions)
         new_states = np.array(new_states)
@@ -183,16 +195,16 @@ class DQN():
         dones = np.array(dones)
         new_actions = np.array(new_actions, dtype=np.int)
 
-        target_prediction = self.model.predict(new_states)
+        target_prediction = self.model.predict([new_states, stuck_distances])
         target_prediction[
             np.arange(len(target_prediction)), new_actions] +=\
             np.array(rewards)
 
-        predictions = self.model.predict(states)
+        predictions = self.model.predict([states, stuck_distances])
         predictions[
             np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
 
-        self.model.fit(states, predictions, batch_size=32, shuffle=True, verbose=1, epochs=2)
+        self.model.fit([states, stuck_distances], predictions, batch_size=32, shuffle=True, verbose=1, epochs=1)
 
     def reward(self, reward, done, info, prev_info):
         return reward_calculator.reward(reward, done, info, prev_info)

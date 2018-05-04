@@ -1,15 +1,18 @@
 from src import dqn
 from glob import glob
+import os
 import random
 from src.env_creator import create_environment
 from retro import list_games, list_states
 
 
 env = create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act3')
-dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.2,
+dqn = dqn.DQN(env, reply_memory_size=50_000, steps_learn_from_memory=500000, replay_actions=2000, epsilon=0.03,
               gamma=0.5).setup_models()
-dqn.model.load_weights("weights/alvaro_dqn_model.h5")
-dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
+
+if os.path.exists("weights/alvaro_dqn_model.h5"):
+    dqn.model.load_weights("weights/alvaro_dqn_model.h5")
+    dqn.target_model.load_weights("weights/alvaro_dqn_target_model.h5")
 env.close()
 dqn._env = None
 
@@ -37,20 +40,20 @@ if __name__ == "__main__":
     episodes = 0
 
     while True:
-        for i in range(5):
+        for i in range(0):
             train_on_random_movie(dqn)
             dqn.learn_from_memory()
 
         game, state = random_state()
 
-        env = create_environment(game=game, state=state)
+        env = create_environment(game="SonicTheHedgehog-Genesis", state="StarLightZone.Act1")
         dqn.env = env
         dqn._epsilon = 0.2
 
         for i in range(100):
+            dqn.env = env
             train_on_game(dqn, render=True)
             dqn.learn_from_memory()
-            dqn.env = env
             dqn._epsilon *= 0.98
 
             episodes += 1
