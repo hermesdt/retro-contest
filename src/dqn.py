@@ -23,7 +23,8 @@ class DQN():
         self.gamma = gamma
         self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
 
-        self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
+        #self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
+        self.model = self.build_model()
         if load_weights and os.path.exists("weights/alvaro_dqn_model.h5"):
             self.model.load_weights("weights/alvaro_dqn_model.h5")
 
