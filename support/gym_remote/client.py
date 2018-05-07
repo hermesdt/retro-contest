@@ -1,12 +1,13 @@
 import gym
 import time
 
-from gym_remote import Bridge
+from .bridge import Bridge
 
 
 class RemoteEnv(gym.Env):
     def __init__(self, directory, tries=8):
         self.bridge = Bridge(directory)
+        self.bridge.settimeout(100000)
 
         # Try a few times to connect
         backoff = 2

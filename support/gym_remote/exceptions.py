@@ -1,5 +1,4 @@
-import gym_remote as gr
-
+from .bridge import Bridge
 
 class GymRemoteErrorMeta(type):
     ID_MAX = 0
@@ -33,11 +32,11 @@ class WallClockTimeoutError(TimeoutError, metaclass=GymRemoteErrorMeta):
     pass
 
 
-class ClientDisconnectError(gr.Bridge.Closed, metaclass=GymRemoteErrorMeta):
+class ClientDisconnectError(Bridge.Closed, metaclass=GymRemoteErrorMeta):
     pass
 
 
-class ServerDisconnectError(gr.Bridge.Closed, metaclass=GymRemoteErrorMeta):
+class ServerDisconnectError(Bridge.Closed, metaclass=GymRemoteErrorMeta):
     pass
 
 

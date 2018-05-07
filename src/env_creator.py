@@ -1,9 +1,14 @@
-from support.retro_contest import local
-from baselines.common import atari_wrappers
+from src import atari_wrappers
+from src import utils
+
+logger = utils.get_logger(__name__)
 
 def create_environment(game, state):
+    from support.retro_contest import local
     env = local.make(game, state, bk2dir="games")
     env = wrap_environment(env)
+
+    logger.info("* Created environment {}/{}".format(game, state))
     return env
 
 def wrap_environment(env):

@@ -1,1 +1,8 @@
 gym-retro/.git
+venv
+human_games
+roms
+.git
+__pycache__
+.idea
+.DS_Store

@@ -14,7 +14,7 @@ class CoordsStore():
             self.coords.append([x, y])
 
     def smallest_distance(self, x, y):
-        distance = min([math.sqrt((a - x) ** 2 + (b - y) ** 2) for a, b in self.coords] or [5_000])
+        distance = min([math.sqrt((a - x) ** 2 + (b - y) ** 2) for a, b in self.coords] or [5000])
         return distance
 
 

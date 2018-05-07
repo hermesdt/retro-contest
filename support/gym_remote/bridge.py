@@ -161,7 +161,7 @@ class Bridge:
             raise exception
 
         def exception(message):
-            import gym_remote.exceptions as gre
+            from . import exceptions as gre
             raise gre.make(message['exception'], message['reason'])
 
         self._channels = {}
