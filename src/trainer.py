@@ -65,7 +65,6 @@ def train_on_env(dqn, env, epochs=1, online_batch_size=500, render=False,
         epsilon_resetted_at = None
         first_x, last_x = None, None
         manual_interventions = 0
-        episode_rewards = []
 
         dqn.reset(env)
 
@@ -75,17 +74,13 @@ def train_on_env(dqn, env, epochs=1, online_batch_size=500, render=False,
                 epsilon_resetted_at = None
                 dqn.epsilon = initial_epsilon
 
-            cum_last_rewards = sum(episode_rewards[-100:])
-            extra_info = np.array([cum_last_rewards])
-
-            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, extra_info)
-            episode_rewards.append(reward)
+            state, action, new_state, reward, done, info, new_action = dqn.step(env)
             total_reward += reward
 
             if render:
                 env.render()
 
-            memory.append((state, action, new_state, reward, done, info, new_action, extra_info))
+            memory.append((state, action, new_state, reward, done, info, new_action))
 
             if not done:
                 if episode_steps % online_batch_size == 0 and episode_steps > 0:
@@ -112,7 +107,6 @@ def train_on_env(dqn, env, epochs=1, online_batch_size=500, render=False,
         dqn.learn_from_memory(memory)
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
         memory.clear()
-        episode_rewards.clear()
         dqn.epsilon = initial_epsilon
 
         logger.info("Total reward {}, total_steps {}, manual interventions {}".format(
