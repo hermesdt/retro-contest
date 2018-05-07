@@ -21,11 +21,13 @@ def create_random_env():
     return env_creator.create_environment(game, state)
 
 for i in range(100):
-    for i in range(0):
+    for i in range(1):
         trainer.train_on_random_movie(dqn)
     
-    env = create_random_env()
-    trainer.train_on_env(dqn, env, epochs=50, render=False,
+    # env = create_random_env()
+    env = env_creator.create_environment('SonicTheHedgehog-Genesis', "MarbleZone.Act2")
+    trainer.train_on_env(dqn, env, epochs=50, render=True,
+                         train_steps=200,
                          manual_interventions_enabled=False,
                          manual_intervention_epsilon=0.8,
                          manual_intervention_duration=200)

@@ -51,7 +51,7 @@ def train_from_movie(dqn, movie_file):
     env.close()
     movie.close()
 
-def train_on_env(dqn, env, epochs=1, online_batch_size=500, render=False,
+def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                  manual_interventions_enabled=True,
                  manual_intervention_epsilon=0.8,
                  manual_intervention_duration=200):
@@ -83,10 +83,9 @@ def train_on_env(dqn, env, epochs=1, online_batch_size=500, render=False,
             memory.append((state, action, new_state, reward, done, info, new_action))
 
             if not done:
-                if episode_steps % online_batch_size == 0 and episode_steps > 0:
+                if episode_steps % train_steps == 0 and episode_steps > 0:
                     logger.info("- trigger online batch training (reward {})".format(round(total_reward)))
-                    last_online_batch_size_idx = round((episode_steps / online_batch_size))
-                    dqn.learn_from_memory(memory[last_online_batch_size_idx:])
+                    dqn.learn_from_memory(memory)
 
                 # manual intervention
                 if epsilon_resetted_at is None and manual_interventions_enabled and episode_steps > 0 and episode_steps % 100 == 0:
