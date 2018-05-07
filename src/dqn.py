@@ -39,8 +39,9 @@ class DQN():
         frames_in = tf.keras.Input(shape=self.observation_space.shape, name="frames_in")
         # extras_in = tf.keras.Input(shape=(1,), name="extras_in")
 
-        x = tf.layers.Conv2D(32, (7, 7), input_shape=self.observation_space.shape)(frames_in)
-        x = tf.layers.Conv2D(32, (7, 7))(x)
+        x = tf.layers.Conv2D(64, (7, 7), input_shape=self.observation_space.shape)(frames_in)
+        x = tf.layers.Conv2D(32, (3, 3))(x)
+        x = tf.layers.Conv2D(32, (3, 3))(x)
         x = tf.layers.AveragePooling2D((7, 7), 7)(x)
         x = tf.layers.Flatten()(x)
         #x = tf.layers.Flatten(input_shape=self.observation_space.shape)(frames_in)

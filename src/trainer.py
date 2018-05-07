@@ -78,6 +78,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                 dqn.epsilon = initial_epsilon
 
             state, action, new_state, reward, done, info, new_action = dqn.step(env)
+            if reward == 0: reward = -1
             total_reward += reward
 
             if render:
@@ -89,23 +90,23 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                     dqn.learn_from_memory(memory[-train_steps:])
 
                 # manual intervention
-                if epsilon_resetted_at is None and manual_interventions_enabled and episode_steps > 0 and episode_steps % 100 == 0:
+                if False and epsilon_resetted_at is None and manual_interventions_enabled and episode_steps > 0 and episode_steps % 50 == 0:
                     last_x = info["x"]
 
-                    if first_x and last_x and abs(first_x - last_x) < 20:
+                    if first_x and last_x and abs(first_x - last_x) < 10:
                         logger.info("- manual intervention triggered (reward {})".format(round(total_reward)))
                         manual_interventions += 1
                         first_x = last_x = None
-                        reward = -1000
+                        reward = -10
                         epsilon_resetted_at = episode_steps
-                        dqn.epsilon = manual_intervention_epsilon
+                        # dqn.epsilon = manual_intervention_epsilon
                     else:
                         first_x = last_x
 
             memory.append((state, action, new_state, reward, done, info, new_action))
             prev_info = info
 
-        #dqn.learn_from_memory(memory)
+        dqn.learn_from_memory(memory)
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
         memory.clear()
         dqn.epsilon = initial_epsilon
