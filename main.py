@@ -21,7 +21,7 @@ def create_random_env():
     return env_creator.create_environment(game, state)
 
 for i in range(100):
-    for i in range(2):
+    for i in range(0):
         trainer.train_on_random_movie(dqn)
     
     env = create_random_env()

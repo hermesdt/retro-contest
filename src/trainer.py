@@ -82,7 +82,9 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                 dqn.epsilon = initial_epsilon
 
             state, action, new_state, reward, done, info, new_action = dqn.step(env)
-            if reward == 0: reward = -5
+            if reward > 0: reward *= 2
+            if reward < 0: reward *= -1
+            if reward == 0: reward = -1
             max_x = max(max_x, info["x"])
             total_reward += reward
 
