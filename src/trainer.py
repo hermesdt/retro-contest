@@ -6,6 +6,7 @@ from retro.scripts import playback_movie
 from src import actions_builder, env_creator
 import math
 from src import utils
+from collections import deque
 
 logger = utils.get_logger(__name__)
 
@@ -58,6 +59,8 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                  manual_interventions_enabled=True,
                  manual_intervention_epsilon=0.8,
                  manual_intervention_duration=200):
+
+    full_memories = deque(maxlen=4)
     for epoch in range(epochs):
         episode_steps = 0
         done = False
@@ -68,6 +71,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
         epsilon_resetted_at = None
         first_x, last_x = None, None
         manual_interventions = 0
+        max_x = 0
 
         dqn.reset(env)
 
@@ -78,7 +82,8 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                 dqn.epsilon = initial_epsilon
 
             state, action, new_state, reward, done, info, new_action = dqn.step(env)
-            if reward == 0: reward = -0.01
+            if reward == 0: reward = -5
+            max_x = max(max_x, info["x"])
             total_reward += reward
 
             if render:
@@ -86,7 +91,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
 
             if not done:
                 if episode_steps % train_steps == 0 and episode_steps > 0:
-                    logger.info("- trigger online batch training (reward {})".format(round(total_reward)))
+                    logger.info("- trigger online batch training (reward {}, max_x {})".format(round(total_reward), max_x))
                     dqn.learn_from_memory(memory[-train_steps:])
 
                 # manual intervention
@@ -94,7 +99,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                     last_x = info["x"]
 
                     if first_x and last_x and abs(first_x - last_x) < 10:
-                        logger.info("- manual intervention triggered (reward {})".format(round(total_reward)))
+                        logger.info("- manual intervention triggered (reward {}, max_x {})".format(round(total_reward), max_x))
                         manual_interventions += 1
                         first_x = last_x = None
                         reward = -10
@@ -107,10 +112,12 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             prev_info = info
 
         dqn.learn_from_memory(memory)
+        [dqn.learn_from_memory(mem) for mem in full_memories]
+
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
-        memory.clear()
+        full_memories.append(memory)
         dqn.epsilon = initial_epsilon
 
-        logger.info("Total reward {}, total_steps {}, manual interventions {}".format(
-            round(total_reward), episode_steps, manual_interventions))
+        logger.info("Total reward {}, total_steps {}, max_x {}, manual interventions {}".format(
+            round(total_reward), episode_steps, max_x, manual_interventions))
 
