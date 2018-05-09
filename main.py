@@ -9,7 +9,7 @@ logger = utils.get_logger(__name__)
 
 env = env_creator.create_environment(game='SonicTheHedgehog-Genesis', state='GreenHillZone.Act1')
 actions = actions_builder.build(env.action_space)
-dqn = DQN(env.observation_space, actions, epsilon=0.2, gamma=0.95, lr=0.005, keras_verbose=1)
+dqn = DQN(env.observation_space, actions, epsilon=0.2, gamma=0.995, lr=0.005, keras_verbose=1)
 env.close()
 
 #trainer.train_on_random_movie(dqn)
@@ -26,7 +26,7 @@ for i in range(100):
     
     #env = create_random_env()
     # env = env_creator.create_environment('SonicTheHedgehog-Genesis', "SpringYardZone.Act1")
-    env = env_creator.create_environment('SonicTheHedgehog-Genesis', "GreenHillZone.Act1")
+    env = env_creator.create_environment('SonicTheHedgehog-Genesis', "GreenHillZone.Act2")
     trainer.train_on_env(dqn, env, epochs=20, render=True,
                          train_steps=400,
                          manual_interventions_enabled=True,

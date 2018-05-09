@@ -81,7 +81,8 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                 epsilon_resetted_at = None
                 dqn.epsilon = initial_epsilon
 
-            state, action, new_state, reward, done, info, new_action = dqn.step(env)
+            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env)
+
             if reward > 0: reward = 1
             if reward < 0: reward = 0.5
             if reward == 0: reward = -5
@@ -110,7 +111,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                     else:
                         first_x = last_x
 
-            memory.append((state, action, new_state, reward, done, info, new_action))
+            memory.append((state, action, new_state, reward, done, info, new_action, extra_info))
             prev_info = info
 
         dqn.learn_from_memory(memory)
