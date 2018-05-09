@@ -18,6 +18,6 @@ def wrap_environment(env):
     env = atari_wrappers.WarpFrame(env)
     env = atari_wrappers.ScaledFloatFrame(env)
     # env = atari_wrappers.ClipRewardEnv(env)
-    env = atari_wrappers.FrameStack(env, 4)
+    env = atari_wrappers.FrameStack(env, 2)
 
     return env
