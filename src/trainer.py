@@ -76,6 +76,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
         dqn.reset(env)
 
         while not done:
+            max_x = 0
             episode_steps += 1
             if epsilon_resetted_at and episode_steps - epsilon_resetted_at >= manual_intervention_duration:
                 epsilon_resetted_at = None
@@ -85,7 +86,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
 
             if reward > 0: reward = 1
             if reward < 0: reward = 0.5
-            if reward == 0: reward = -5
+            if reward == 0: reward = -0.1
             max_x = max(max_x, info["x"])
             total_reward += reward
 

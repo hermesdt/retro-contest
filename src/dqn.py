@@ -22,7 +22,7 @@ class DQN():
         self.epsilon = epsilon
         self.gamma = gamma
         self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
-        self.last_actions = deque(maxlen=10)
+        self.last_actions = deque(maxlen=4)
 
         #self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
         self.model = self.build_model()
