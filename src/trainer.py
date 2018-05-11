@@ -55,12 +55,24 @@ def train_from_movie(dqn, movie_file):
     env.close()
     movie.close()
 
+def enqueue_episode(episodes, total_reward, total_steps, memory):
+    if len(episodes) < episodes.maxlen:
+        episodes.append((total_reward, total_steps, memory))
+        return
+
+    for index, episode in enumerate(episodes):
+        reward, steps, memory = episode
+        if total_reward > reward:
+            episodes[index] = (total_reward, total_steps, memory)
+            break
+
+
 def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                  manual_interventions_enabled=True,
                  manual_intervention_epsilon=0.8,
                  manual_intervention_duration=200):
 
-    full_memories = deque(maxlen=4)
+    episodes = deque(maxlen=5)
     for epoch in range(epochs):
         episode_steps = 0
         done = False
@@ -115,13 +127,18 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             memory.append((state, action, new_state, reward, done, info, new_action, extra_info))
             prev_info = info
 
-        dqn.learn_from_memory(memory)
-        [dqn.learn_from_memory(mem) for mem in full_memories]
+        enqueue_episode(episodes, total_reward, episode_steps, memory)
+        for total_reward, total_steps, memory in episodes:
+            logger.info("training on memory with reward {}, steps {}".format(total_reward, total_steps))
+            dqn.learn_from_memory(memory)
+
+        # dqn.learn_from_memory(memory)
+        #[dqn.learn_from_memory(mem) for mem in full_memories]
 
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
-        full_memories.append(memory)
         dqn.epsilon = initial_epsilon
 
         logger.info("Total reward {}, total_steps {}, max_x {}, manual interventions {}".format(
             round(total_reward), episode_steps, max_x, manual_interventions))
+
 

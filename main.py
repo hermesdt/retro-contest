@@ -24,9 +24,10 @@ for i in range(100):
     for i in range(0):
         trainer.train_on_random_movie(dqn)
     
-    env = create_random_env()
+    #env = create_random_env()
     # env = env_creator.create_environment('SonicTheHedgehog-Genesis', "SpringYardZone.Act1")
-    #env = env_creator.create_environment('SonicTheHedgehog-Genesis', "GreenHillZone.Act2")
+    env = env_creator.create_environment('SonicTheHedgehog-Genesis', "GreenHillZone.Act1")
+    #env = env_creator.create_environment('SonicTheHedgehog-Genesis', "LabyrinthZone.Act2")
     trainer.train_on_env(dqn, env, epochs=20, render=False,
                          train_steps=400,
                          manual_interventions_enabled=True,
