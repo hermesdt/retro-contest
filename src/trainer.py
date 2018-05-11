@@ -112,7 +112,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                 if episode_steps > 0 and episode_steps % 50 == 0:
                     logger.info("last rewards {}".format(sum(np.abs(real_rewards[-50:]))))
                     if sum(np.abs(real_rewards[-50:])) < 5:
-                        if pushing_wall:
+                        if pushing_wall and False:
                             for data in memory[-50:]:
                                 data[3] = -0.5
                         if not pushing_wall:
@@ -130,11 +130,11 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             prev_info = info
 
         enqueue_episode(episodes, total_reward, episode_steps, memory)
-        for total_reward, total_steps, memory in episodes:
-            logger.info("training on memory with reward {}, steps {}".format(total_reward, total_steps))
-            dqn.learn_from_memory(memory)
+        #for total_reward, total_steps, memory in episodes:
+        #    logger.info("training on memory with reward {}, steps {}".format(total_reward, total_steps))
+        #    dqn.learn_from_memory(memory)
 
-        # dqn.learn_from_memory(memory)
+        dqn.learn_from_memory(memory)
         #[dqn.learn_from_memory(mem) for mem in full_memories]
 
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
