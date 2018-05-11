@@ -40,7 +40,7 @@ class DQN():
 
     def build_model(self, initializer=None):
         frames_in = tf.keras.Input(shape=self.observation_space.shape, name="frames_in")
-        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen,), name="extras_in")
+        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen+2,), name="extras_in")
 
         #x = tf.layers.Conv2D(64, (7, 7), input_shape=self.observation_space.shape)(frames_in)
         #x = tf.layers.Conv2D(32, (3, 3))(x)
@@ -48,13 +48,13 @@ class DQN():
         #x = tf.layers.AveragePooling2D((7, 7), 7)(x)
         #x = tf.layers.Flatten()(x)
         x = tf.layers.Flatten(input_shape=self.observation_space.shape)(frames_in)
-        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.keras.layers.Concatenate()([x, extras_in])
+        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(128, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.layers.Dense(self.action_space.n, kernel_initializer=initializer)(x)
 
         model = tf.keras.models.Model(inputs=[frames_in, extras_in], outputs=[x])
@@ -63,7 +63,7 @@ class DQN():
         model.compile(tf.keras.optimizers.Adam(lr=self.lr), tf.keras.losses.mean_squared_error)
         return model
 
-    def step(self, env, human_action=None):
+    def step(self, env, human_action=None, pushing_wall=False):
         if human_action is not None:
             self.action = human_action
 
@@ -71,6 +71,7 @@ class DQN():
         self.last_actions.append(self.action)
 
         extra_info = np.array(self.expand_actions(self.last_actions))
+        extra_info = np.concatenate([extra_info, [[0, 1]] if pushing_wall else [[1, 0]]], axis=1)
         new_action = self.select_action(new_state, extra_info)
 
         action_state = (self.state, self.action, new_state, reward, done, info, new_action, extra_info)

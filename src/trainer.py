@@ -79,26 +79,24 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
         prev_info = None
         total_reward = 0
         memory = []
-        initial_epsilon = dqn.epsilon
-        epsilon_resetted_at = None
         first_x, last_x = None, None
-        manual_interventions = 0
         max_x = 0
+        pushing_wall = False
+        real_rewards = []
 
         dqn.reset(env)
 
         while not done:
             max_x = 0
             episode_steps += 1
-            if epsilon_resetted_at and episode_steps - epsilon_resetted_at >= manual_intervention_duration:
-                epsilon_resetted_at = None
-                dqn.epsilon = initial_epsilon
 
-            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env)
+            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, pushing_wall=pushing_wall)
+            real_rewards.append(reward)
 
             if reward > 0: reward = 1
             if reward < 0: reward = 0.5
-            if reward == 0: reward = -0.1
+            if reward == 0: -0.1
+            import time
             max_x = max(max_x, info["x"])
             total_reward += reward
 
@@ -111,20 +109,24 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                     dqn.learn_from_memory(memory[-train_steps:])
 
                 # manual intervention
-                if False and epsilon_resetted_at is None and manual_interventions_enabled and episode_steps > 0 and episode_steps % 50 == 0:
-                    last_x = info["x"]
+                if episode_steps > 0 and episode_steps % 50 == 0:
+                    logger.info("last rewards {}".format(sum(np.abs(real_rewards[-50:]))))
+                    if sum(np.abs(real_rewards[-50:])) < 5:
+                        if pushing_wall:
+                            for data in memory[-50:]:
+                                data[3] = -0.5
+                        if not pushing_wall:
+                            logger.info("pushing wall ON")
+                            pushing_wall = True
+                    elif pushing_wall:
+                        logger.info("pushing wall OFF")
+                        pushing_wall = False
+                        if False:
+                            for data in memory[-50:]:
+                                data[3] = 1
 
-                    if first_x and last_x and abs(first_x - last_x) < 10:
-                        logger.info("- manual intervention triggered (reward {}, max_x {})".format(round(total_reward), max_x))
-                        manual_interventions += 1
-                        first_x = last_x = None
-                        reward = -10
-                        epsilon_resetted_at = episode_steps
-                        # dqn.epsilon = manual_intervention_epsilon
-                    else:
-                        first_x = last_x
 
-            memory.append((state, action, new_state, reward, done, info, new_action, extra_info))
+            memory.append([state, action, new_state, reward, done, info, new_action, extra_info])
             prev_info = info
 
         enqueue_episode(episodes, total_reward, episode_steps, memory)
@@ -136,9 +138,8 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
         #[dqn.learn_from_memory(mem) for mem in full_memories]
 
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
-        dqn.epsilon = initial_epsilon
 
-        logger.info("Total reward {}, total_steps {}, max_x {}, manual interventions {}".format(
-            round(total_reward), episode_steps, max_x, manual_interventions))
+        logger.info("Total reward {}, total_steps {}, max_x {}".format(
+            round(total_reward), episode_steps, max_x))
 
 
