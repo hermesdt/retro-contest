@@ -22,7 +22,7 @@ class DQN():
         self.epsilon = epsilon
         self.gamma = gamma
         self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
-        self.last_actions = deque(maxlen=4)
+        self.last_actions = deque(maxlen=10)
 
         #self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
         self.model = self.build_model()
@@ -52,7 +52,7 @@ class DQN():
         x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
-        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        #x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.layers.Dense(self.action_space.n, kernel_initializer=initializer)(x)
 
         model = tf.keras.models.Model(inputs=[frames_in, extras_in], outputs=[x])
@@ -131,7 +131,8 @@ class DQN():
 
         predictions = self.model.predict([states, extra_infos])
         predictions[
-            np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
+            # np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
+            np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), np.argmax(target_prediction, axis=1)]
 
         self.model.fit([states, extra_infos], predictions, batch_size=32, shuffle=True, verbose=self.keras_verbose, epochs=1)
 
