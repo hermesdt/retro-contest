@@ -93,9 +93,9 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, pushing_wall=pushing_wall)
             real_rewards.append(reward)
 
-            if reward > 0: reward = 1
-            if reward < 0: reward = 0.5
-            if reward == 0: -0.1
+            if reward > 0: reward
+            if reward < 0: reward # *= -0.5
+            if reward == 0: -1
             import time
             max_x = max(max_x, info["x"])
             total_reward += reward
