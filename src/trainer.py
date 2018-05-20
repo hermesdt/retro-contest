@@ -109,22 +109,19 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
                     dqn.learn_from_memory(memory[-train_steps:])
 
                 # manual intervention
-                if episode_steps > 0 and episode_steps % 50 == 0:
-                    logger.info("last rewards {}".format(sum(np.abs(real_rewards[-50:]))))
-                    if sum(np.abs(real_rewards[-50:])) < 5:
-                        if pushing_wall and False:
-                            for data in memory[-50:]:
-                                data[3] = -0.5
+                if episode_steps > 0 and episode_steps % 200 == 0:
+                    sum_last_rewards = sum(np.abs(real_rewards[-400:]))
+                    logger.info("last rewards {}".format(sum_last_rewards))
+                    if sum_last_rewards < 30:
+                        if pushing_wall:
+                            reward = -1000
                         if not pushing_wall:
                             logger.info("pushing wall ON")
                             pushing_wall = True
                     elif pushing_wall:
                         logger.info("pushing wall OFF")
                         pushing_wall = False
-                        if False:
-                            for data in memory[-50:]:
-                                data[3] = 1
-
+                        reward = 200
 
             memory.append([state, action, new_state, reward, done, info, new_action, extra_info])
             prev_info = info

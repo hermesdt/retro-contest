@@ -28,8 +28,8 @@ for i in range(100):
     # env = env_creator.create_environment('SonicTheHedgehog-Genesis', "SpringYardZone.Act1")
     #env = env_creator.create_environment('SonicTheHedgehog-Genesis', "GreenHillZone.Act2")
     #env = env_creator.create_environment('SonicTheHedgehog-Genesis', "LabyrinthZone.Act2")
-    trainer.train_on_env(dqn, env, epochs=20, render=False,
-                         train_steps=600,
+    trainer.train_on_env(dqn, env, epochs=20, render=True,
+                         train_steps=100600,
                          manual_interventions_enabled=True,
                          manual_intervention_epsilon=0.8,
                          manual_intervention_duration=100)
