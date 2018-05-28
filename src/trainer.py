@@ -90,7 +90,7 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             max_x = 0
             episode_steps += 1
 
-            extras = [[(sum(real_rewards[-20:]) + 1)/20]]
+            extras = [[(sum(real_rewards[-20:]))/20]]
             state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, _extra_info=extras)
             real_rewards.append(reward)
 
@@ -104,16 +104,16 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             if render:
                 env.render()
 
-            if done:
+            if False and done:
                 sum_last_rewards = sum(real_rewards)
                 memory[-1][3] = sum_last_rewards
 
             if not done:
                 if episode_steps % train_steps == 0 and episode_steps > 0:
-                    sum_last_rewards = sum(real_rewards[-train_steps:])
+                    sum_last_rewards = sum(real_rewards[:])
                     logger.info("- trigger online batch training (reward {}, max_x {})".format(sum_last_rewards, max_x))
                     memory[-1][3] = sum_last_rewards
-                    dqn.learn_from_memory(memory[-train_steps:])
+                    dqn.learn_from_memory(memory[:])
 
                 # manual intervention
                 if False and episode_steps > 0 and episode_steps % 200 == 0:
