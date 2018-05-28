@@ -22,7 +22,7 @@ class DQN():
         self.epsilon = epsilon
         self.gamma = gamma
         self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
-        self.last_actions = deque(maxlen=2)
+        self.last_actions = deque(maxlen=4)
 
         #self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
         self.model = self.build_model()
@@ -40,18 +40,18 @@ class DQN():
 
     def build_model(self, initializer=None):
         frames_in = tf.keras.Input(shape=self.observation_space.shape, name="frames_in")
-        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen+2,), name="extras_in")
+        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen,), name="extras_in")
 
         x = tf.keras.layers.ZeroPadding2D((1, 1), input_shape=self.observation_space.shape)(frames_in)
-        x = tf.layers.Conv2D(32, (3, 3), activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
         x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
-        x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), activation=tf.keras.activations.relu)(x)
-        x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), activation=tf.keras.activations.relu)(x)
-        x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        #x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
         x = tf.layers.Flatten()(x)
 
         #x = tf.layers.Flatten(input_shape=self.observation_space.shape)(frames_in)
@@ -69,7 +69,7 @@ class DQN():
         model.compile(tf.keras.optimizers.Adam(lr=self.lr), tf.keras.losses.mean_squared_error)
         return model
 
-    def step(self, env, human_action=None, pushing_wall=False):
+    def step(self, env, human_action=None, _extra_info=[[]]):
         if human_action is not None:
             self.action = human_action
 
@@ -77,7 +77,7 @@ class DQN():
         self.last_actions.append(self.action)
 
         extra_info = np.array(self.expand_actions(self.last_actions))
-        extra_info = np.concatenate([extra_info, [[0, 1]] if pushing_wall else [[1, 0]]], axis=1)
+        extra_info = np.concatenate([extra_info, _extra_info], axis=1)
         new_action = self.select_action(new_state, extra_info)
 
         action_state = (self.state, self.action, new_state, reward, done, info, new_action, extra_info)
@@ -142,7 +142,7 @@ class DQN():
             # np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
             np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), np.argmax(target_prediction, axis=1)]
 
-        self.model.fit([states, extra_infos], predictions, batch_size=128, shuffle=True, verbose=self.keras_verbose, epochs=1)
+        self.model.fit([states, extra_infos], predictions, batch_size=64, shuffle=True, verbose=self.keras_verbose, epochs=1)
 
     def reward(self, reward, done, info):
         return reward_calculator.reward(reward, done, info)

@@ -90,38 +90,46 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             max_x = 0
             episode_steps += 1
 
-            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, pushing_wall=pushing_wall)
+            state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env)
             real_rewards.append(reward)
 
-            if reward > 0: reward
-            if reward < 0: reward # *= -0.5
-            if reward == 0: -1
-            import time
+            #if reward > 0: reward
+            #if reward < 0: reward # *= -0.5
+            #if reward == 0: -1
+            reward = 0
             max_x = max(max_x, info["x"])
             total_reward += reward
 
             if render:
                 env.render()
 
+            if done:
+                sum_last_rewards = sum(real_rewards)
+                memory[-1][3] = sum_last_rewards
+
             if not done:
                 if episode_steps % train_steps == 0 and episode_steps > 0:
-                    logger.info("- trigger online batch training (reward {}, max_x {})".format(round(total_reward), max_x))
+                    sum_last_rewards = sum(real_rewards[-train_steps:])
+                    logger.info("- trigger online batch training (reward {}, max_x {})".format(sum_last_rewards, max_x))
+                    memory[-1][3] = sum_last_rewards
                     dqn.learn_from_memory(memory[-train_steps:])
 
                 # manual intervention
-                if episode_steps > 0 and episode_steps % 200 == 0:
-                    sum_last_rewards = sum(np.abs(real_rewards[-400:]))
-                    logger.info("last rewards {}".format(sum_last_rewards))
-                    if sum_last_rewards < 30:
+                if False and episode_steps > 0 and episode_steps % 200 == 0:
+                    punishment = -50
+                    sum_last_rewards = sum(real_rewards[-400:])
+                    logger.info("last rewards {}, steps {}, max_x {}".format(sum_last_rewards, episode_steps, max_x))
+                    if np.abs(sum_last_rewards) < 20 or punishment in real_rewards[-400:]:
                         if pushing_wall:
-                            reward = -1000
+                            logger.info("punishing with {}".format(punishment))
+                            reward = punishment
                         if not pushing_wall:
                             logger.info("pushing wall ON")
                             pushing_wall = True
                     elif pushing_wall:
                         logger.info("pushing wall OFF")
                         pushing_wall = False
-                        reward = 200
+                        #reward = 200
 
             memory.append([state, action, new_state, reward, done, info, new_action, extra_info])
             prev_info = info
@@ -137,6 +145,6 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
         dqn.model.save_weights("weights/alvaro_dqn_model.h5")
 
         logger.info("Total reward {}, total_steps {}, max_x {}".format(
-            round(total_reward), episode_steps, max_x))
+            sum(real_rewards), episode_steps, max_x))
 
 
