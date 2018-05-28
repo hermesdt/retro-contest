@@ -94,10 +94,6 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, _extra_info=extras)
             real_rewards.append(reward)
 
-            #if reward > 0: reward
-            #if reward < 0: reward # *= -0.5
-            #if reward == 0: -1
-            reward = 0
             max_x = max(max_x, info["x"])
             total_reward += reward
 
@@ -106,31 +102,14 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
 
             if False and done:
                 sum_last_rewards = sum(real_rewards)
-                memory[-1][3] = sum_last_rewards
+                #memory[-1][3] = sum_last_rewards
 
             if not done:
                 if episode_steps % train_steps == 0 and episode_steps > 0:
                     sum_last_rewards = sum(real_rewards[:])
                     logger.info("- trigger online batch training (reward {}, max_x {})".format(sum_last_rewards, max_x))
-                    memory[-1][3] = sum_last_rewards
+                    #memory[-1][3] = sum_last_rewards
                     dqn.learn_from_memory(memory[:])
-
-                # manual intervention
-                if False and episode_steps > 0 and episode_steps % 200 == 0:
-                    punishment = -50
-                    sum_last_rewards = sum(real_rewards[-400:])
-                    logger.info("last rewards {}, steps {}, max_x {}".format(sum_last_rewards, episode_steps, max_x))
-                    if np.abs(sum_last_rewards) < 20 or punishment in real_rewards[-400:]:
-                        if pushing_wall:
-                            logger.info("punishing with {}".format(punishment))
-                            reward = punishment
-                        if not pushing_wall:
-                            logger.info("pushing wall ON")
-                            pushing_wall = True
-                    elif pushing_wall:
-                        logger.info("pushing wall OFF")
-                        pushing_wall = False
-                        #reward = 200
 
             memory.append([state, action, new_state, reward, done, info, new_action, extra_info])
             prev_info = info

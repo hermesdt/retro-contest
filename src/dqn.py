@@ -21,8 +21,8 @@ class DQN():
         self.lr = lr
         self.epsilon = epsilon
         self.gamma = gamma
-        self.action_space = gym.spaces.Discrete(len(self.ACTIONS))
-        self.last_actions = deque(maxlen=4)
+        self.action_space = gym.spaces.Discrete(len(self.ACTIONS))#
+        self.last_actions = deque(maxlen=0)
 
         #self.model = self.build_model(initializer=tf.keras.initializers.Zeros())
         self.model = self.build_model()
@@ -42,19 +42,19 @@ class DQN():
         frames_in = tf.keras.Input(shape=self.observation_space.shape, name="frames_in")
         extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen+1,), name="extras_in")
 
-        x = tf.keras.layers.ZeroPadding2D((1, 1), input_shape=self.observation_space.shape)(frames_in)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
-        x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
-        x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
-        x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
-        x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
-        x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
-        x = tf.layers.Flatten()(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1), input_shape=self.observation_space.shape)(frames_in)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
+        #x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
+        #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
+        #x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
+        #x = tf.layers.Flatten()(x)
 
-        #x = tf.layers.Flatten(input_shape=self.observation_space.shape)(frames_in)
+        x = tf.layers.Flatten(input_shape=self.observation_space.shape)(frames_in)
         #x = tf.layers.BatchNormalization()(x)
         x = tf.keras.layers.Concatenate()([x, extras_in])
         #x = tf.layers.BatchNormalization()(x)
@@ -110,13 +110,20 @@ class DQN():
         probs[action] = 1 - self.epsilon + self.epsilon / num_actions
         return probs
 
-    def learn_from_memory(self, memory):
+    def learn_from_memory(self, memory, n_steps=20):
         states, actions, new_states, rewards, dones, new_actions = [], [], [], [], [], []
         extra_infos = []
         ret = 0
+        processed_rewards = []
         for state, action, new_state, reward, done, info, new_action, extra_info in memory[::-1]:
             extra_infos.append(extra_info[0])
-            ret = reward = reward + ret*self.gamma
+            ret = reward
+            for index,r in enumerate(processed_rewards[-n_steps::-1]):
+                ret += r*(self.gamma**(index+1))
+            # ret = reward = reward + ret*self.gamma
+            processed_rewards.append(reward)
+            reward = ret
+
             states.append(state)
             actions.append(np.where((self.ACTIONS == np.array(action)).all(axis=1))[0][0])
             new_states.append(new_state)
@@ -139,8 +146,8 @@ class DQN():
 
         predictions = self.model.predict([states, extra_infos])
         predictions[
-            # np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
-            np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), np.argmax(target_prediction, axis=1)]
+            np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), new_actions]
+            #np.arange(len(predictions)), actions] = target_prediction[np.arange(len(predictions)), np.argmax(target_prediction, axis=1)]
 
         self.model.fit([states, extra_infos], predictions, batch_size=64, shuffle=True, verbose=self.keras_verbose, epochs=1)
 
