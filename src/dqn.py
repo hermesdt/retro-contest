@@ -40,17 +40,17 @@ class DQN():
 
     def build_model(self, initializer=None):
         frames_in = tf.keras.Input(shape=self.observation_space.shape, name="frames_in")
-        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen,), name="extras_in")
+        extras_in = tf.keras.Input(shape=(self.action_space.n*self.last_actions.maxlen+1,), name="extras_in")
 
         x = tf.keras.layers.ZeroPadding2D((1, 1), input_shape=self.observation_space.shape)(frames_in)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
         #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         #x = tf.keras.layers.ZeroPadding2D((1, 1))(x)
-        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        #x = tf.layers.Conv2D(32, (3, 3), kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         #x = tf.layers.MaxPooling2D((2, 2), (2, 2))(x)
         x = tf.layers.Flatten()(x)
 
@@ -58,9 +58,9 @@ class DQN():
         #x = tf.layers.BatchNormalization()(x)
         x = tf.keras.layers.Concatenate()([x, extras_in])
         #x = tf.layers.BatchNormalization()(x)
-        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         #x = tf.layers.BatchNormalization()(x)
-        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.relu)(x)
+        x = tf.layers.Dense(64, kernel_initializer=initializer, activation=tf.keras.activations.elu)(x)
         x = tf.layers.Dense(self.action_space.n, kernel_initializer=initializer)(x)
 
         model = tf.keras.models.Model(inputs=[frames_in, extras_in], outputs=[x])
