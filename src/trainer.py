@@ -90,9 +90,12 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             max_x = 0
             episode_steps += 1
 
-            extras = [[(sum(real_rewards[-20:]))/20]]
+            #extras = [[(sum(real_rewards[-20:]))/20]]
+            extras = [[]]
             state, action, new_state, reward, done, info, new_action, extra_info = dqn.step(env, _extra_info=extras)
             real_rewards.append(reward)
+
+            reward = 0
 
             max_x = max(max_x, info["x"])
             total_reward += reward
@@ -100,9 +103,9 @@ def train_on_env(dqn, env, epochs=1, train_steps=500, render=False,
             if render:
                 env.render()
 
-            if False and done:
+            if done:
                 sum_last_rewards = sum(real_rewards)
-                #memory[-1][3] = sum_last_rewards
+                memory[-1][3] = sum_last_rewards
 
             if not done:
                 if episode_steps % train_steps == 0 and episode_steps > 0:
